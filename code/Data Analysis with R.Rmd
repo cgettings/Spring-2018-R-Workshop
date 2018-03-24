@@ -1,0 +1,910 @@
+---
+title: "Data Analysis with R"
+output:
+  html_document:
+    df_print: paged
+  html_notebook:
+    highlight: tango
+    theme: simplex
+  pdf_document: default
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
+# Getting started
+
+## Loading packages
+
+```{r, message=FALSE}
+
+library(lsr)
+library(Hmisc)
+library(car)
+library(DescTools)
+library(psych)
+library(tidyverse)
+library(haven)
+library(broom)
+
+```
+
+## Loading data
+
+### From the project folder
+
+```{r}
+
+## CSV ##
+
+affect.data <- read_csv("./data/affect.data.csv")
+
+## SAV ##
+
+# affect.data <- read_sav("./data/affect.data.sav")
+
+```
+
+\ \  
+
+### From OSF
+
+```{r}
+
+## CSV ##
+
+# affect.data <- read_csv("https://osf.io/ahda9/download")
+
+## SAV ##
+
+# affect.data <- read_sav("https://osf.io/n88bc/download")
+
+```
+
+\ \  
+
+## Cleaning
+
+Let's make sure our condition variables are factors
+
+### Using `base`
+
+```{r eval=FALSE}
+affect.data$CondThreat      <- as.factor(affect.data$CondThreat)
+affect.data$CondDiscomfort  <- as.factor(affect.data$CondDiscomfort)
+```
+
+\ \  
+
+With the `$` operator, we're specifying that we want to change these columns in the data frame (left-hand side) using the same data (right-hand side). The sides don't have to be identical.
+
+### Using `tidyverse`
+
+```{r}
+
+affect.data <- 
+    affect.data %>% 
+    mutate_at(
+        vars(CondThreat, CondDiscomfort), 
+        funs(as.factor)
+    )
+
+```
+
+\ \  
+
+# Formulas
+
+Formulas were originally for fitting models, but since they're easy to understand and pretty flexible, they've been adpated for other purposes as well.  
+
+I'll explain formulas by way of a description of the models they would be specifying if we were running a linear regression (although the code retains the same basic meaning for other kinds of regression), what the code is saying, and also the corresponding SPSS syntax.  
+
+I'll get into the real model fitting commands a little further down.  
+
+
+**In these examples:**  
+
+* `Y` is the dependent variable
+* `A` and `B` are factors
+* `X1` and `X2` are continuous covariates
+
+
+## Simple linear regression
+
+```
+formula_1 <- Y ~ A
+```
+
+`Y` regressed onto `A`  
+
+**SPSS:**  
+  `Y BY A`  
+
+When `A` has 2 groups, this is identical to a Student's *t*-test.  
+When `A` has 3+ groups, this is basically a one-way ANOVA  
+
+\ \  
+
+```
+formula_2 <- Y ~ X1
+```
+
+`Y` regressed onto `X1`
+
+**SPSS:**  
+  `Y WITH X1`
+
+This is like running a Pearson correlation if you standardize the coefficients  
+
+\ \  
+
+## Multiple linear regression - No interaction
+
+```
+formula_3 <- Y ~ X1 + X2
+```
+
+`Y` regressed onto `X1` and `X2`
+
+**SPSS:**  
+  `Y WITH X1 X2`  
+  `/DESIGN = INTERCEPT X1 X2`
+
+\ \  
+
+```
+formula_4 <- Y ~ A + B
+```
+
+`Y` regressed onto `A` and `B`  
+
+**SPSS:**  
+  `Y BY A B`  
+  `/DESIGN = INTERCEPT A B`
+
+This is a 2-way ANOVA with just main effects  
+
+\ \  
+
+```
+formula_5 <- Y ~ A + B + X1
+```
+
+`Y` regressed onto `A`, `B` and X1  
+
+**SPSS:**  
+  `Y BY A B WITH X1`  
+  `/DESIGN = INTERCEPT A B X1`  
+
+This is a 2-way *ANCOVA* with just main effects  
+
+\ \  
+
+## Multiple linear regression - With interactions
+
+```
+formula_6 <- Y ~ X1 * X2
+```
+
+`Y` regressed onto `X1` and `X2` and the interaction between `X1` and `X2`
+
+**SPSS:**  
+  `Y WITH X1 X2`  
+  `/DESIGN = INTERCEPT X1 X2 X1*X2`  
+
+
+The formula can also be specified like this:  
+ `formula_6 <- Y ~ X1 + X2 + X1:X2`  
+
+This lets you specify interaction models other than the full factorial, because you can specify that a variable interacts with some variables but not others, e.g. every 2-way interaction, but no 3-way interactions. This will become very useful in ANCOVA with interactions below (formula_8).
+
+\ \  
+
+```
+formula_7 <- Y ~ A * B
+```
+
+`Y` regressed onto `A` and `B` and the interaction between `A` and `B`  
+
+**SPSS:**  
+  `Y BY A B`  
+  `/DESIGN = INTERCEPT A B A*B`  
+
+The formula can also be specified like this:  
+ `formula_7 <- Y ~ A + B + A:B`  
+
+This is a 2-way ANOVA with main effects and interaction  
+
+\ \  
+
+```
+formula_8 <- Y ~ A * B + X1
+```
+
+`Y` regressed onto `A`, `B` AND X1, and the interaction between `A` and `B`  
+
+**SPSS:**  
+  `Y BY A B WITH X1`  
+  `/DESIGN = INTERCEPT A B X1 A*B`  
+
+
+The formula can also be specified like this:  
+ `formula_8 <- Y ~ A + B + X1 + A:B`  
+
+This is a 2-way *ANCOVA* with main effects and interaction  
+
+\ \  
+
+# Correlations
+
+R has built-in correlation functions - one that produces a correlation table that has no p-values (`cor()`), and another that tests a single correlation  at a time (`cor.test()`). It's possible to write a loop that runs `cor.test()` for each pair of variables in your dataset, but possibly the best aspect of R is that most problems like this have been solved by people much better at stats than we are, and they've collected their solutions into packages that we can download.
+
+So anytime you have a problem like this, you should look to see if there's a function in a package that solves it. There are a few ways to conduct such a search, in order of increasing specificity:
+1. Within R, use "??" in front of a relevant term (e.g., `??correlation`), or search in the RStudio "Help" pane.
+2. Search on StackOverflow.com, a forum for programming questions that has a huge repository of R questions.
+3. Look on Rseek.org, a search engine that looks through blogs and user forums dedicated to R
+4. Ask Dr. Google. Apply the same rules as always: if you put enough words or exact phrases, you'll eventually find what you're looking for.
+
+You can also ask me. Chances are that I've cycled through these 4 steps enough that I have an answer to your question, or I at least know what to look for.
+
+So, onto correlation...
+
+\ \  
+
+## Are negative affect and importance correlated?
+
+### Built-in `cor.test()` function
+
+(with `broom::tidy()` to make the output readable.)
+
+```{r}
+cor.test(x = affect.data$Issue.imp_scale, y = affect.data$dissonance.1.scale) %>% tidy()
+```
+
+\ \  
+
+### `correlate()` from `lsr` package
+
+`correlate()` takes a matrix or a data frame as input, it automatically filters out non-numeric variables, and it will give you a matrix of correlation coefficients with significance stars, along with a matrix of p-values, and a matrix of sample sizes. Just make sure you type `test = TRUE`.
+
+```{r}
+correlate(as.data.frame(affect.data), test = TRUE)
+```
+
+Obviously, there's only 1 pair of variables here, so a list of matrices is probably overkill.
+
+What would `correlate()` look like if there were multiple numeric variables?
+
+\ \  
+
+```{r}
+correlate(iris, test = TRUE)    # Using built-in `iris` dataset
+```
+
+\ \  
+
+## Scatterplots
+
+You can also visualize these correlations by making scatterplots. The default plot method when you supply 2 continuous variables is a scatterplot.
+
+You can also add a regression fit line using `geom_smooth()`
+
+```{r}
+
+cor.test(affect.data$Issue.imp_scale, affect.data$dissonance.1.scale) %>% tidy()
+
+affect.data %>% 
+    ggplot(aes(x = Issue.imp_scale, y = dissonance.1.scale)) +
+    geom_point() +
+    geom_smooth(method = "lm") +
+    theme_bw()
+
+```
+
+\ \  
+
+# *t*-tests
+
+## Are the conditions different?
+
+Before diving into the ANOVA that is inevitably coming, you might like to see if the conditions within each factor are different from each other. We'll run *t*-tests for this.
+
+R's *t*-test function calculates Welch's *t*-test by default. If you remember from stats 1, this corrects for unequal variances by adjusting the degrees of freedom. When the variances of the conditions are identical, it gives results that are basically no different from Student's *t*-test. When variances are unequal, it's more robust to Type-I error. Because of this, people recommend just using Welch's *t*-test right at the start.
+
+There are two ways of specifying the *t*-test: the default method, which uses `x = ` and `y = ` to specify two numeric vectors; and the "formula" method, which takes the form `DV ~ IV`. If you use the formula method, you can only do a 2-group Welch's *t*-test. If you specify `x` and `y` arguments, you can enter `var.equal = TRUE` to do a Student's *t*-test, or `paired = TRUE` to do a dependent *t*-test, or just supply 1 variable to `x` and `mu = 0` to do a 1-sample *t*-test.
+
+Because we're doing a 2-group *t*-test, we'll just use the formula method, because it's so much easier to specify.
+
+We'll also add in Cohen's d, using `cohensD()` from the `lsr` package. This has almost identical specifications as `t.test()`
+
+\ \  
+
+### Does Screening Issue importance differ between groups?
+
+#### Between "Threat" conditions
+
+```{r}
+
+t.test(
+    Issue.imp_scale ~ CondThreat, 
+    data = affect.data) %>% 
+    tidy() %>% 
+    mutate_if(is.numeric, round, digits = 2)
+
+cohensD(
+    Issue.imp_scale ~ CondThreat, 
+    data = affect.data)
+
+```
+
+\ \  
+
+#### Between "Discomfort timing" conditions
+
+```{r}
+
+t.test(
+    Issue.imp_scale ~ CondDiscomfort, 
+    data = affect.data) %>% 
+    tidy() %>% 
+    mutate_if(is.numeric, round, digits = 2)
+
+cohensD(
+    Issue.imp_scale ~ CondDiscomfort, 
+    data = affect.data)
+
+```
+
+\ \  
+
+Issue importance is a measured covariate, so it's nice that it doesn't vary between the groups. Thank you random assignment!
+
+\ \  
+
+### Does negative affect differ between the groups?
+
+#### Between "Threat" conditions
+
+```{r}
+
+t.test(
+    dissonance.1.scale ~ CondThreat, 
+    data = affect.data) %>% 
+    tidy() %>% 
+    mutate_if(is.numeric, round, digits = 2)
+
+cohensD(
+    dissonance.1.scale ~ CondThreat, 
+    data = affect.data)
+
+```
+
+\ \  
+
+#### Between "Discomfort timing" conditions
+
+```{r}
+
+t.test(
+    dissonance.1.scale ~ CondDiscomfort, 
+    data = affect.data) %>% 
+    tidy() %>% 
+    mutate_if(is.numeric, round, digits = 2)
+
+cohensD(
+    dissonance.1.scale ~ CondDiscomfort, 
+    data = affect.data)
+
+```
+
+\ \  
+
+If you need to get the 95% CI for Cohen's d, you can use the `ci.smd()` function in the `MBESS` package.
+ 
+These analyses are looking at marginal means for the conditions, which is to say, negative affect between threat conditions *averaging over* the timing of the measurement (before vs. after), and negative affect before vs. after threat compensation *averaging over* threat and neutral essays. This is interesting (to Timothy and I, at least), but not the information that what we really want, which is how these two conditions interact. To do that, we'll turn to ANOVA in the next section.
+ 
+First we'll make some plots.
+
+\ \  
+
+# Plots
+
+## Barplots (for means)
+
+### Issue importance
+
+#### Using `lsr`
+
+You can get nicely formatted means plots with 95% CIs by default, using `bars()` from the `lsr` package.
+
+```{r eval=FALSE}
+bars(formula = Issue.imp_scale ~ CondThreat, data = affect.data)
+bars(formula = Issue.imp_scale ~ CondDiscomfort, data = affect.data)
+```
+
+\ \  
+
+#### Using `ggplot2`
+
+Use `dplyr::do()` to run `ggplot2::mean_cl_normal()` on `Issue.imp_scale`, separately for each level of `CondThreat`. This will give us the mean and CI values for this variable. We can then use these to plot the main bars and error bars.
+
+```{r}
+
+affect.data %>% 
+    group_by(CondThreat) %>% 
+    do(mean_cl_normal(.$Issue.imp_scale)) %>% 
+    ggplot(
+        aes(
+            x = CondThreat, 
+            y = y, 
+            fill = CondThreat)
+        ) +
+    geom_bar(stat = "identity",
+             position = position_dodge(),
+             width = 0.5) +
+    geom_errorbar(
+        aes(
+            ymin = ymin, 
+            ymax = ymax), 
+        width = .1) +
+    theme_bw()
+
+
+affect.data %>% 
+    group_by(CondDiscomfort) %>% 
+    do(mean_cl_normal(.$Issue.imp_scale)) %>% 
+    ggplot(
+        aes(
+            x = CondDiscomfort, 
+            y = y, 
+            fill = CondDiscomfort)
+        ) +
+    geom_bar(stat = "identity",
+             position = position_dodge(),
+             width = 0.5) +
+    geom_errorbar(
+        aes(
+            ymin = ymin, 
+            ymax = ymax), 
+        width = .1) +
+    theme_bw()
+
+
+```
+
+
+### Negative affect
+
+#### Using `lsr`
+
+```{r eval=FALSE}
+bars(formula = dissonance.1.scale ~ CondThreat, data = affect.data)
+bars(formula = dissonance.1.scale ~ CondDiscomfort, data = affect.data)
+```
+
+#### Using `ggplot2`
+
+```{r}
+
+affect.data %>% 
+    group_by(CondThreat) %>% 
+    do(mean_cl_normal(.$dissonance.1.scale)) %>% 
+    ggplot(
+        aes(
+            x = CondThreat, 
+            y = y, 
+            fill = CondThreat)
+        ) +
+    geom_bar(stat = "identity",
+             position = position_dodge(),
+             width = 0.5) +
+    geom_errorbar(
+        aes(
+            ymin = ymin, 
+            ymax = ymax), 
+        width = .1) +
+    theme_bw()
+
+
+affect.data %>% 
+    group_by(CondDiscomfort) %>% 
+    do(mean_cl_normal(.$dissonance.1.scale)) %>% 
+    ggplot(
+        aes(
+            x = CondDiscomfort, 
+            y = y, 
+            fill = CondDiscomfort)
+        ) +
+    geom_bar(stat = "identity",
+             position = position_dodge(),
+             width = 0.5) +
+    geom_errorbar(
+        aes(
+            ymin = ymin, 
+            ymax = ymax), 
+        width = .1) +
+    theme_bw()
+
+
+```
+
+\ \  
+
+## Boxplots
+
+Instead of barplots, you can also get box-and-whisker plots.
+
+### Issue importance
+
+#### Using `graphics`
+
+```{r}
+
+boxplot(formula = Issue.imp_scale ~ CondThreat,
+        notch = TRUE,
+        data = affect.data)
+
+boxplot(formula = Issue.imp_scale ~ CondDiscomfort,
+        notch = TRUE,
+        data = affect.data)
+        
+```
+
+\ \  
+
+#### Using `ggplot2`
+
+```{r}
+
+affect.data %>% 
+    ggplot(aes(y = Issue.imp_scale, x = CondThreat)) + 
+    geom_boxplot(width = .5, notch = TRUE) +
+    theme_bw()
+
+affect.data %>% 
+    ggplot(aes(y = Issue.imp_scale, x = CondDiscomfort)) + 
+    geom_boxplot(width = .5, notch = TRUE) +
+    theme_bw()
+
+```
+
+\ \  
+
+### Negative affect
+
+#### Using `graphics`
+
+```{r}
+
+boxplot(formula = dissonance.1.scale ~ CondThreat,
+        notch = TRUE,
+        data = affect.data)
+
+boxplot(formula = dissonance.1.scale ~ CondDiscomfort,
+        notch = TRUE,
+        data = affect.data)
+        
+```
+
+\ \  
+
+#### Using `ggplot2`
+
+```{r}
+
+affect.data %>% 
+    ggplot(aes(y = dissonance.1.scale, x = CondThreat)) + 
+    geom_boxplot(width = .25, notch = TRUE) +
+    theme_bw()
+
+affect.data %>% 
+    ggplot(aes(y = dissonance.1.scale, x = CondDiscomfort)) + 
+    geom_boxplot(width = .25, notch = TRUE) +
+    theme_bw()
+
+```
+
+\ \  
+
+# Linear models
+
+Now, it's the big time.
+
+Model fitting is actually incredibly easy in R. This is where its object-orientation is very useful. Model objects store all the model-related information in a hierarchical list, where they can be accessed by subsetting with the usual methods -- [[]] or $ -- or extracted using "extractor" functions like `resid()`, which returns raw residuals.
+
+\ \  
+
+## Contrasts codes
+
+Contrast codes are very important to understand if you want to use R for model fitting.
+ 
+Every factor has an "attribute" that defines its contrasts for model fitting. The default contrast type in R is "treatment contrasts", which look like this:
+
+\ \  
+ 
+### Treatment contrasts
+
+```{r}
+contr.treatment(2)
+contr.treatment(5)
+```
+
+\ \  
+
+You can see that our 2 factors have these contrasts already set:
+
+```{r}
+contrasts(affect.data$CondThreat)
+contrasts(affect.data$CondDiscomfort)
+```
+
+\ \  
+
+In SPSS, these are called "simple" contrasts.
+
+```
+/CONTRAST(A) = SIMPLE(1)
+```
+
+\ \  
+
+### Orthogonal contrasts
+
+The default contrasts used in SPSS are "deviation" contrasts. This takes each level of the factor (except the last, which is set as the reference group) and compares it to the Grand Mean (aka the mean of the group means).
+ 
+In SPSS syntax, this is:
+
+```
+/CONTRAST(A) = DEVIATION
+```
+
+These are preferred for a number of reasons having to do with multicollinearity and identifiability, which you can read more about  here: http://goanna.cs.rmit.edu.au/~fscholer/anova.php
+
+In R, these are called "sum to zero" contrasts, or `contr.sum()`:
+
+```{r}
+contr.sum(2)
+contr.sum(5)
+```
+
+To get them in R, you have to set them manually.
+
+```{r}
+contrasts(affect.data$CondThreat) <- contr.sum(2)
+contrasts(affect.data$CondDiscomfort) <- contr.sum(2)
+```
+
+Check what you've done by running this:
+
+```{r}
+contrasts(affect.data$CondThreat)
+contrasts(affect.data$CondDiscomfort)
+```
+
+\ \  
+
+### Other contrasts
+
+R also has Helmert contrasts, for more complicated comparisons, and polynomial contrasts, for repeated measures
+
+```{r}
+contr.poly(2)
+contr.poly(5)
+```
+
+```{r}
+contr.helmert(2)
+contr.helmert(5)
+```
+
+\ \  
+
+You can also define your own contrasts using matrices. For example, if you wanted to change the reference condition in "sum to zero contrasts" from fist to last, with a 5-group factor, you could do this:
+
+```{r}
+fac.5 <- 1:5
+fac.5 <- as.factor(fac.5)
+
+contrasts(fac.5) <-
+    
+    matrix(
+        c(-1, -1, -1, -1,
+           1,  0,  0,  0,
+           0,  1,  0,  0,
+           0,  0,  1,  0,
+           0,  0,  0,  1),
+        nrow = 5,
+        byrow = TRUE
+    )
+```
+
+\ \  
+
+## Running the ANOVA model
+
+Let's run an ANOVA with both factors, plus their interaction. I often put the arguments and variables on different lines to improve readability.
+
+```{r}
+
+diss.anova <- 
+    
+    aov(dissonance.1.scale ~ 
+            
+            CondThreat,
+            #CondDiscomfort +
+            #CondThreat:CondDiscomfort,
+        
+        data = affect.data)
+
+```
+
+\ \  
+
+### Summaries
+
+We can get useful model summaries using `broom::tidy()` and `broom::glance()`
+
+```{r}
+tidy(diss.anova)
+```
+
+\ \  
+
+Using `tidy(diss.aov)` would get you Type-1 SS, which you don't want. Instead use `Anova()` from the `car` package to get Type-2 and Type-3 SS.
+
+```{r}
+Anova(diss.anova, type = 2) %>% tidy()
+Anova(diss.anova, type = 3) %>% tidy()
+```
+
+\ \  
+
+As you can see, `tidy()` works with a lot of different model output. `tidy()` has methods for lots of different kinds of model output. To see what these are, type `methods(tidy)`
+
+```{r}
+tidy(Anova(diss.anova, type = 2))
+tidy(Anova(diss.anova, type = 3))
+```
+
+If you find yourself *really* wanting to round the output from `tidy()`, you can use the `mutate_if()` function from `dplyr`, along with the "pipe operator".
+ 
+The pipe operator is pretty simple. First you take an object, like a data frame, and then add `%>%` after it (Ctrl + Shift + M), and then after that, add any function that can take that kind of object as its *first* argument.
+ 
+For example, say we want to see the structure of `affect.data`. We could type:
+
+```{r eval=FALSE}
+str(affect.data)
+```
+
+because `str()` has `object = ` as its first argument:
+
+```{r eval=FALSE}
+str(object = affect.data)
+```
+
+So, you can type
+
+```{r}
+affect.data %>% str()
+```
+
+And get the exact same thing as before, because `%>%` is passing `affect.data`
+ as the first argument to `str()`.
+ 
+So, if you want to do some rounding, here's what you do:
+
+After  
+
+```{r eval=FALSE}
+tidy(Anova(diss.anova, type = 2))
+```
+
+Add  
+  
+```{r eval=FALSE}
+%>% mutate_if(is.numeric, round, digits = 2)
+```
+
+Which makes  
+
+```{r}
+tidy(Anova(diss.anova, type = 2)) %>% mutate_if(is.numeric, round, digits = 2)
+```
+
+Which says "modify the numeric columns in this data frame by rounding them to 2 digits."
+
+If you want more info on `mutate_if()` or `dplyr`, check out the [data transformation cheatsheet](https://www.rstudio.com/resources/cheatsheets/) on the RStudio website or in the **Help > Cheatsheets** menu in RStudio
+
+\ \  
+
+### ANOVA Effect sizes ###
+
+If you want to get effect sizes for the terms in your ANOVA, you can use `lsr::etaSquared()`
+
+```{r}
+round(etaSquared(diss.anova, type = 2), digits = 3)
+round(etaSquared(diss.anova, type = 3), digits = 3)
+```
+
+\ \  
+
+### Post-hoc tests
+
+If you want post-hoc tests, you can use `lsr::posthocPairwiseT()`
+
+```{r}
+posthocPairwiseT(diss.anova, p.adj = "bonf")
+```
+
+or `TukeyHSD`
+
+### Tukey HSD ###
+
+```{r}
+print(TukeyHSD(diss.anova), digits = 2)
+```
+
+\ \  
+
+### Model Diagnostics
+
+#### Diagnostic plots
+
+The default `plot()` method for `lm` classed objects provides model diagnostic plots
+
+```{r}
+
+oldpar <- par(mfrow = c(2,2))
+
+plot(diss.anova)
+
+par(oldpar)
+
+```
+
+By default, this produces 4 different plots. I want to show all of these at once, so I set the graphics parameter `mfrow` to `c(2, 2)`, indicating that I want 2 rows and 2 columns. I then set the parameters back to normal by running `par(oldpar)`.
+
+\ \  
+
+#### Diagnostic values
+
+To get the standard diagnostics for your model, you can use `broom::augment()`, which, just like `broom::tidy()`, works with many different kinds of model output. What it does it add diagnostic values to a data frame of the data used to fit the model.
+
+Specifically, for `lm` and `aov` classed objects, `augment()` adds fitted values, standard errors for the fitted values, unstandardized and standardized residuals, hat values, and Cook's distances.
+
+```{r}
+augment(diss.anova) %>% as_tibble()
+```
+
+If you save the output as a data frame, then you can manipulate it however you want. For example, you could plot observed vs. fitted values.
+
+```{r}
+diss.anova.augment <- augment(diss.anova) %>% as_tibble()
+diss.anova.augment %>% ggplot(aes(x = dissonance.1.scale, y = .fitted)) + geom_point() + theme_bw()
+```
+
+This looks a little weird, because there are only 2 possible fitted values, because there are only 2 different values of the *x* variable. That and this is actually a pretty terribly fitting model.
+
+If you were to have a continuous x variable, it would make more intuitive sense. For example, if you were to include the interaction of importance and the condition indicator (i.e., an ANCOVA with importance as the covariate):
+
+```{r}
+
+diss.anova.2 <- 
+    
+    aov(dissonance.1.scale ~ 
+            
+            CondThreat + 
+            Issue.imp_scale + 
+            CondThreat:Issue.imp_scale,
+        
+        data = affect.data)
+
+diss.anova.2.augment <- augment(diss.anova.2) %>% as_tibble()
+diss.anova.2.augment %>% ggplot(aes(x = dissonance.1.scale, y = .fitted)) + geom_point() + theme_bw()
+
+```
+
+Still not a great fit, but at least there's some variance now.

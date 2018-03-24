@@ -1,0 +1,453 @@
+---
+title: "Data Exploration with R"
+output:
+  html_document:
+    df_print: paged
+  html_notebook:
+    highlight: tango
+    theme: simplex
+  pdf_document: default
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
+# Getting started
+
+## Loading packages
+
+```{r, message=FALSE}
+
+library(lsr)
+library(Hmisc)
+library(car)
+library(DescTools)
+library(psych)
+library(tidyverse)
+library(haven)
+library(broom)
+
+```
+
+## Loading data
+
+### From the project folder
+
+```{r}
+
+## CSV ##
+
+affect.data <- read_csv("./data/affect.data.csv")
+
+## SAV ##
+
+# affect.data <- read_sav("./data/affect.data.sav")
+
+```
+
+\ \  
+
+### From OSF
+
+```{r}
+
+## CSV ##
+
+# affect.data <- read_csv("https://osf.io/ahda9/download")
+
+## SAV ##
+
+# affect.data <- read_sav("https://osf.io/n88bc/download")
+
+```
+
+\ \  
+
+# Exploring the data
+
+## Structure
+
+```{r}
+
+## Preview
+
+print(affect.data)
+
+## Glimpse all columns
+
+glimpse(affect.data)
+
+```
+
+\ \  
+
+This will show you the classes of the data contained in the data frame. The condition indicators `CondThreat` and `CondDiscomfort` are "factors", which are analogous to "nominal" variables in SPSS. I set them as factors in the original dataset, and these properties of the data are preserved in the RDS file. They are not preserved in the `.csv` file, and so if you loaded the data from the `.csv` file, you will need to change the condition indicators to be factors. You do this by "coercing" them into another class, using the coercion function `as.factor()`.
+
+## Cleaning
+
+### Using `base`
+
+```{r eval=FALSE}
+affect.data$CondThreat      <- as.factor(affect.data$CondThreat)
+affect.data$CondDiscomfort  <- as.factor(affect.data$CondDiscomfort)
+```
+
+\ \  
+
+With the `$` operator, we're specifying that we want to change these columns in the data frame (left-hand side) using the same data (right-hand side). The sides don't have to be identical.
+
+### Using `tidyverse`
+
+```{r}
+
+affect.data <- 
+    affect.data %>% 
+    mutate_at(
+        vars(CondThreat, CondDiscomfort), 
+        funs(as.factor)
+    )
+
+```
+
+\ \  
+
+This is basically doing the same thing, using the [scoped](http://dplyr.tidyverse.org/reference/scoped.html) mutate function.
+
+\ \  
+
+### Double-check the class of the factors
+
+```{r}
+class(affect.data$CondThreat)
+class(affect.data$CondDiscomfort)
+```
+
+\ \  
+
+### Check their levels too
+
+```{r}
+levels(affect.data$CondThreat)
+levels(affect.data$CondDiscomfort)
+```
+
+\ \  
+
+## Descriptives
+
+Use the `describeBy()` function from the `psych` package to get lots of 
+ descriptive statistics for all of the variables, across all participants,
+ or split by condition using the `group = ` argument. 
+ 
+Whith no `group = ` argument specified, it will give a warning, but will return
+ descriptives for the whole sample. 
+
+\ \  
+
+### Whole dataset
+
+```{r}
+describeBy(affect.data) %>% as_tibble()
+```
+
+You can use the `group = ` argument to split the data, and get stats within each level of grouping.
+
+\ \  
+
+### Within both groups
+
+#### Separate output for each level
+
+```{r}
+describeBy(affect.data, group = list(affect.data$CondThreat))
+describeBy(affect.data, group = list(affect.data$CondDiscomfort))
+```
+
+\ \  
+
+##### Matrix output combining all levels
+
+```{r}
+
+describeBy(
+    affect.data,
+    group = list(affect.data$CondThreat),
+    mat = TRUE,
+    digits = 2
+    )
+
+describeBy(
+    affect.data,
+    group = list(affect.data$CondDiscomfort),
+    mat = TRUE,
+    digits = 2
+    )
+    
+```
+
+\ \  
+
+### At each level pair
+
+#### Separate output for each level
+
+```{r}
+
+describeBy(
+    affect.data,
+    group = list(affect.data$CondThreat, affect.data$CondDiscomfort))
+           
+```
+
+\ \  
+
+##### Matrix output combining all levels
+
+```{r}
+
+describeBy(
+    affect.data,
+    group = list(affect.data$CondThreat, affect.data$CondDiscomfort),
+    mat = TRUE,
+    digits = 2
+    )
+    
+```
+
+\ \  
+
+### Confidence intervals
+
+There are several ways to get confidence intervals for the mean. I like `MeanCI()` from the `DescTools` package, because it prints the mean along with the upper and lower bounds.
+
+\ \  
+
+#### Overall
+
+```{r}
+MeanCI(x = affect.data$dissonance.1.scale) %>% round(digits = 2)
+MeanCI(x = affect.data$Issue.imp_scale)    %>% round(digits = 2)
+```
+
+\ \  
+
+#### By condition
+
+There are a lot of ways to get the CI for each group, but all of them are a bit confusing. The easiest way is probably to use `dplyr`'s `do()` function, which runs any functions you want, as long as you can make it produce a `data.frame`. If you create a "grouped" data frame, using `dplyr::group_by`, you can run a function on each group.
+
+`tibble`s drop row names by default, but you can use `tibble::rownames_to_column()` to retain them.
+
+Here we'll group by `CondThreat` and `CondDiscomfort`.
+
+\ \  
+
+##### `CondThreat`, across `CondDiscomfort` levels
+
+```{r}
+
+affect.data %>% 
+    group_by(CondThreat) %>% 
+    do(
+        MeanCI(.$dissonance.1.scale) %>% 
+            round(digits = 2) %>% 
+            as.data.frame() %>% 
+            rownames_to_column()
+        )
+
+```
+
+\ \  
+
+##### `CondDiscomfort`, across `CondThreat` levels
+
+```{r}
+
+affect.data %>% 
+    group_by(CondDiscomfort) %>% 
+    do(
+        MeanCI(.$dissonance.1.scale) %>% 
+            round(digits = 2) %>% 
+            as.data.frame() %>% 
+            rownames_to_column()
+        )
+
+```
+
+\ \  
+
+##### `CondThreat` and `CondDiscomfort` combined
+
+```{r}
+
+affect.data %>% 
+    group_by(CondThreat, CondDiscomfort) %>% 
+    do(
+        MeanCI(.$dissonance.1.scale) %>% 
+            round(digits = 2) %>% 
+            as.data.frame() %>% 
+            rownames_to_column()
+        )
+
+```
+
+\ \  
+
+### Normality tests
+
+To check if the data are distributed normally, you can run a Kolmogorov-Smirnov Test, or a Shapiro-Wilk Normality Test. The Shapiro-Wilk test is less complicated.
+
+\ \  
+
+#### Shapiro-Wilk Test
+
+```{r}
+shapiro.test(affect.data$dissonance.1.scale)
+shapiro.test(affect.data$Issue.imp_scale)
+```
+
+\ \  
+
+#### Kolmogorov-Smirnov Test
+
+`pnorm` is the probability distribution function for the normal distribtion. You're telling the function to compare the data against this distribution.
+
+```{r}
+ks.test(affect.data$dissonance.1.scale, "pnorm")
+ks.test(affect.data$Issue.imp_scale, "pnorm")
+```
+
+\ \  
+
+Definitely not normal. To see why, further down we will use plots to see how the data are distributed
+
+### Cell counts
+
+#### Marginal cell counts
+
+```{r}
+affect.data %>% count(CondThreat)
+affect.data %>% count(CondDiscomfort)
+```
+
+\ \  
+
+#### Combined cell counts
+
+```{r}
+affect.data %>% count(CondThreat, CondDiscomfort)
+```
+
+\ \  
+
+#### Proportions for full contingency table
+
+```{r}
+prop.table(table(affect.data$CondThreat, affect.data$CondDiscomfort)) %>% round(2)
+```
+
+You can also get marginal cell counts and proportions from the full contingency table by using`margin.table()` and `prop.table()`, specifying the margin you want - 1 for rows, 2 for columns.
+
+\ \  
+
+#### Within rows, column proportions
+
+```{r}
+prop.table(table(affect.data$CondThreat, affect.data$CondDiscomfort), margin = 1)
+```
+
+\ \  
+
+#### Within columns, row proportions
+
+```{r}
+prop.table(table(affect.data$CondThreat, affect.data$CondDiscomfort), margin = 2)
+```
+
+\ \  
+
+It doesn't make sense in this context, but if you had categorical data and wanted to run a chi-squared test on the contingency table of cell counts, you would wrap the `table()` function call inside of `chisq.test()`, like this:
+
+\ \  
+
+```{r}
+chisq.test(table(affect.data$CondThreat, affect.data$CondDiscomfort))
+```
+
+\ \  
+
+This is because `chisq.test()` can take a matrix as input, and `table()` is a convenient way of creating the cell count matrix we want in this case
+
+## Plots
+
+\ \  
+
+Set the default `ggplot2` theme
+
+```{r}
+theme_set(theme_bw())
+```
+
+\ \  
+
+### Bar plots
+
+#### `CondThreat`
+
+```{r}
+affect.data %>% ggplot(aes(CondThreat)) + geom_bar()
+```
+
+\ \  
+
+#### `CondDiscomfort`
+
+```{r}
+affect.data %>% ggplot(aes(CondDiscomfort)) + geom_bar()
+```
+
+\ \  
+
+### Histograms
+
+#### Negative affect
+
+```{r}
+affect.data %>% ggplot(aes(dissonance.1.scale)) + geom_histogram()
+```
+
+\ \  
+
+#### Issue importance
+
+```{r}
+affect.data %>% ggplot(aes(Issue.imp_scale)) + geom_histogram()
+```
+
+\ \  
+
+### Density estimates
+
+You can get a better sense of the distribution of the data by using kernel density plots. Kernel density estimates take the data and "smooth" it by assuming that the data points are drawn from a population with a specific probability distribution, which implies that they have a certain statistical relationship. Based on the observed distribution of your data, it estimates the shape of the population distribution. The default is Gaussian (i.e., normal).
+ 
+As you can imagine, this dosn't work very well with small samples.
+
+Kernel desnity estimates are computed using `density()`, but you can also plot them using `ggplot2::geom_density()`.
+
+\ \  
+
+#### Negative affect
+
+```{r}
+affect.data %>% ggplot(aes(dissonance.1.scale)) + geom_density()
+```
+
+\ \  
+
+#### Issue importance
+
+```{r}
+affect.data %>% ggplot(aes(Issue.imp_scale)) + geom_density()
+```

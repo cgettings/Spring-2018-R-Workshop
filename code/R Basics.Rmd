@@ -1,0 +1,854 @@
+---
+title: "R Basics"
+output:
+  html_document:
+    df_print: paged
+  html_notebook:
+    highlight: tango
+    theme: yeti
+  pdf_document: default
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup}
+
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+```
+
+# Basic Math
+
+## You can use R like it's just a big calculator  
+
+### Addition:
+
+```{r}
+2 + 2
+```
+
+### Subtraction:
+
+```{r}
+2 - 2
+```
+
+### Multiplication:
+
+```{r}
+3 * 4
+```
+
+### Division:
+
+```{r}
+3 / 4
+```
+
+### Exponents:
+
+```{r}
+2 ^ 4
+```
+
+\ \  
+
+**But you can also do more complex operations with it...**
+
+## A whole bunch of operations:
+
+```{r}
+(2 + 2) / 3
+2 + (2 / 3)
+```
+
+\ \  
+
+# Logical statements
+
+
+## You can test logical statements
+
+* `==`  equality  
+* `!=`  inequality  
+* `>`   greater than  
+* `>=`  greater than or equal to  
+* `<`   less than  
+* `<=`  less than or equal to  
+* `&`   AND  
+* `|`   OR  
+* `!`   NOT  
+
+### Equality
+
+```{r}
+2 + 2 == 5      # FALSE
+2 + 2 == 4      # TRUE
+```
+
+### Inequality
+
+```{r}
+2 + 2 != 5      # TRUE
+2 + 2 != 4      # FALSE
+```
+
+### Greater than
+
+```{r}
+5 > 4       # TRUE
+4 > 5       # FALSE
+```
+
+### Greater than or equal to
+
+```{r}
+5 >= 4      # TRUE
+5 >= 5      # TRUE
+```
+
+### Less than
+
+```{r}
+5 < 4       # FALSE
+4 < 5       # TRUE
+```
+
+### Less than or equal to
+
+```{r}
+4 <= 5      # TRUE
+5 <= 5      # TRUE
+```
+
+# Calculator functions
+
+## Functions that are on a calculator
+
+\ \  
+
+Functions take "arguments". When you hit "tab" with your cursor in the parentheses, RStudio will give you a pop-up list of the arguments for that function, with details when you mouse-over them. 
+
+* `sqrt()`      Square root
+* `round()`     Round a number
+* `log()`       Logarithm
+* `exp()`       Exponentiation
+* `abs()`       Absolute value
+
+\ \  
+
+### Square root
+
+```{r}
+sqrt(x = 9) # Single argument
+```
+
+### Round a number
+
+```{r}
+round(x = 3.141593, digits = 0) # Multiple arguments
+round(3.141593, 0)              # Multiple arguments, with names implicit
+round(3.141593)                 # With 2nd argument as default (digits = 0)
+```
+
+### log
+
+```{r}
+log(x = 2)              # Natural log (base "e")
+log(x = 2, base = 10)   # Log base 10
+```
+
+### $e^x$
+
+```{r}
+exp(x = 1)
+e <- exp(x = 1) # Now you have "e" as a constant
+```
+
+### Absolute value
+
+```{r}
+abs(-5)
+```
+
+### You can also nest functions. They generally operate from the inside-out:
+
+
+```{r}
+log(2)          # = 0.6931472
+exp(0.6931472)  # = 2
+
+exp(log(2))     # also = 2
+```
+
+\ \  
+
+# Objects
+
+![](Hadley_Tweet.png)
+
+[Link to tweet](https://twitter.com/hadleywickham/status/732288980549390336)
+
+\ \  
+
+Objects are one of the primary ways in which analysis in R differs from SPSS. Almost every operation in R uses objects. Objects are used to store information. The pieces of information in objects are called "elements". You can think of many simple objects as "variables" You "assign" data to objects using the assignment operator: `<-`
+
+```{r}
+age <- 5
+print(age)
+```
+
+\ \  
+
+You can use also print the object by just typing/send the command directly, or by highlighting the word in the source file and then doing the same. This is way easier than explicitly using the `print()` function every time.
+ 
+
+```{r}
+age     # Hit Ctrl + Enter (PC) or Command + Enter (mac)
+```
+
+\ \  
+
+You can use objects in functions and operations just like any number or character
+
+```{r}
+age /  2      # represents: 5 / 2
+age == 5      # represents: 5 == 5
+```
+
+\ \  
+
+Vectors are the simplest class of object - think of them like a column in a spreadsheet, or a variable in SPSS. More generally, they are used whenever you want to put some numbers or characters together.
+
+You can also do many of the same operations with vectors as you can do with single numbers
+
+```{r}
+days <- c(1, 3, 5, 7)
+days
+```
+
+```{r}
+days /  2 # represents: 1/2, 3/2, 5/2, 7/2
+days == 5 # represents: 1 == 5, 3 == 5, 5 == 5, 7 == 5
+```
+
+\ \  
+
+You can give elements names 
+
+```{r}
+hours <- c("two" = 2, "four" = 4, "six" = 6, "eight" = 8)
+hours
+```
+
+```{r}
+hours /  2      # represents: 2/2, 4/2, 6/2, 8/2
+hours == 5      # represents: 2 == 5, 4 == 5, 6 == 5, 8 == 5
+```
+
+# Extracting elements
+
+You can select and extract specific elements from objects. The most basic way to do this is with square brackets `[]`.
+
+```{r}
+days[2]
+hours[2]
+```
+
+```{r}
+hours["four"]
+hours[["four"]]
+```
+
+\ \  
+
+You can also select and extract more than one element, which combines vectors with "subsetting" with bracets.  
+
+For example, if you want to get elements `3` and `4` from `hours`:
+
+
+
+```{r}
+hours[3:4]
+```
+
+\ \  
+
+**or...**
+
+```{r}
+hours[c(3, 4)]
+```
+
+\ \  
+
+**or...**
+
+```{r}
+hours[c("six", "eight")]
+```
+
+\ \  
+
+**or...**
+
+```{r}
+hours[c(FALSE, FALSE, TRUE, TRUE)]
+```
+
+\ \  
+
+**or...**
+
+```{r}
+TF <- c(FALSE, FALSE, TRUE, TRUE)   # Because `c(...)` and `TF <- c(...)` are identical
+hours[TF]
+```
+
+# Creating more complex objects
+
+You can also put different objects together into a bunch of different "classes" of objects. which you can find using `class()`, and different structures, which you can explore using `str()`
+
+\ \  
+
+## Vectors
+
+### Concatenate into a vector --- basically just mashing them together
+
+```{r}
+hd.vector <- c(hours, days)
+
+class(hd.vector)
+str(hd.vector)
+```
+
+## Data Frames
+
+### Combine as columns in a data frame --- arranging them like columns in a spreadsheet
+
+Data frames are the most useful, because they have the structure of spreadsheets. This can be your bridge between SPSS / Excel and R
+
+```{r}
+hd.data.frame <- data.frame(hours, days)
+
+class(hd.data.frame)
+str(hd.data.frame)
+```
+
+## Matrices
+
+### Combine as columns in a matrix
+
+```{r}
+hd.matrix.1 <- matrix(c(hours, days), nrow = 4, ncol = 2)
+
+class(hd.matrix.1)
+str(hd.matrix.1)
+```
+
+
+```{r}
+hd.matrix.2 <- as.matrix(hd.data.frame)
+
+class(hd.matrix.2)
+str(hd.matrix.2)
+```
+
+## Lists
+
+### Combine as elements in a list
+
+```{r}
+hd.list.1 <- list(hours, days)
+
+class(hd.list.1)
+str(hd.list.1)
+```
+
+\ \  
+
+Lists are really useful classes of objects. Their elements are *other objects* It's like taking objects that are strewn around your apartment and putting them into individual boxes. The boxes can contain a simple object, like a sheet of paper, or a more complex object, like a file folder. In this metaphor, the whole list object is like a hand truck that you use to carry around the boxes together.
+ 
+Each element is its own object, so when you extract that element from the list, what you get is the original object you put in there. Use double square brackets `[[]]` to do this.
+
+```{r}
+hd.list.1[[2]]
+```
+
+### Lists can get super complicated
+
+```{r}
+hd.list.2 <- list(hd.vector, hd.data.frame, hd.matrix.1)
+
+str(hd.list.2)
+```
+
+### Lists can contain other lists, like boxes can contain other boxes
+
+```{r}
+hd.list.3 <- list(hd.list.1, hd.list.2)
+
+str(hd.list.3)
+hd.list.3[[2]]
+```
+
+\ \  
+
+Combine double square brackets to dig deeper into the list, like saying "open this box, then the box inside of that, and then the file folder inside of that..."
+
+
+```{r}
+hd.list.3                       # The whole list (the hand truck)
+
+hd.list.3[[2]]                  # The 2nd element, also a list (a box)
+
+hd.list.3[[2]][[2]]             # The 2nd element in that list, a data frame (a file folder)
+
+hd.list.3[[2]][[2]][[1]]        # The first element inside that list - a vector (a document)
+
+hd.list.3[[2]][[2]][[1]][1]     # The first element in that vector (a word)
+```
+
+
+# Data frames
+
+Data frames are like spreadsheets, with variables in columns, and subjects in rows (usually).
+We'll explore one of R's built-in datasets
+
+```{r}
+data("mtcars")
+```
+
+```{r}
+class(mtcars)
+str(mtcars)
+```
+
+```{r}
+head(mtcars)    # Displays 1st 6 rows by default
+tail(mtcars)    # Displays last 6 rows by default
+```
+
+```{r}
+names(mtcars)       # Generic - for data frames, prints column names names
+colnames(mtcars)    # Just what you think
+rownames(mtcars)    # Just what you think
+```
+
+\ \  
+
+You can also view the data frame in the familiar spreadsheet view. In RStudio, you can do more complex operations in this spreadsheet.
+
+```{r eval=FALSE}
+View(mtcars)
+```
+
+## Extracting Elements
+
+You can access the variables using square brackets, like above
+
+\ \  
+
+### First column / variable
+
+#### Using column index numbers:
+
+```{r}
+mtcars[1]       # Single bracket keeps the rownames
+mtcars[[1]]     # Double bracket just prints the elements
+
+str(mtcars[1])
+str(mtcars[[1]])
+```
+
+\ \  
+
+#### Using column names:
+
+```{r}
+mtcars["mpg"]       # Single bracket keeps the rownames
+mtcars[["mpg"]]     # Double bracket just prints the elements
+
+str(mtcars["mpg"])
+str(mtcars[["mpg"]])
+```
+
+\ \  
+
+#### Using matrix notation:
+
+```{r}
+mtcars[ ,1]     # [rows, columns]
+
+str(mtcars[ ,1])
+```
+
+\ \  
+
+#### Using matrix notation with names:
+
+```{r}
+mtcars[ ,"mpg"]     # [rows, columns]
+
+str(mtcars[ ,"mpg"])
+```
+
+\ \  
+
+You can also access variables using `$`. RStudio will give you a pop-up list of the elements in the next level of the object when you type `mtcars$ `
+
+```{r}
+mtcars$mpg          # Just prints elements
+
+str(mtcars$mpg)
+```
+
+\ \  
+
+### Matrix notation also means that you can access rows
+
+\ \  
+
+#### Using indexes:
+
+```{r}
+mtcars[1, ]     # [rows, columns]
+
+str(mtcars[1, ])
+```
+
+\ \  
+
+#### Using row names:
+
+```{r}
+mtcars["Mazda RX4", ]     # [rows, columns]
+
+str(mtcars["Mazda RX4", ])
+```
+
+\ \  
+
+### Combine these together to do fancy things:
+
+```{r}
+mtcars["Mazda RX4", "mpg"]
+mtcars["Mazda RX4", 1:5]
+mtcars[1:5, "mpg"]
+mtcars[1:5, 1:5]
+mtcars[c(1, 5), 1:5]
+mtcars[c(1, 5), 1:5]
+mtcars[1:5, c(1, 5)]
+mtcars[c(1, 5), c(1, 5)]
+
+mtcars["mpg" > 20, "hp"]
+```
+
+# Adding Variables
+
+\ \  
+
+## You can add variables to a data frame in a couple different ways
+
+\ \  
+
+### By names:
+
+```{r}
+mtcars$another.variable <- 1:32              # A sequence from 1 to 32
+
+head(mtcars)
+```
+
+```{r}
+mtcars["yet.another"] <- 32:1              # A sequence from 1 to 32
+
+head(mtcars)
+```
+
+\ \  
+
+### By column index number:
+
+```{r}
+mtcars[14] <- 32:1
+
+head(mtcars)
+```
+
+\ \  
+
+## You can also remove variables
+
+\ \  
+
+### Using `NULL`:
+
+```{r}
+mtcars$another.variable <- NULL
+
+head(mtcars)
+```
+
+```{r}
+mtcars["yet.another"] <- NULL
+
+head(mtcars)
+```
+
+```{r}
+mtcars[12] <- NULL
+
+head(mtcars)
+```
+
+\ \  
+
+# Important but mundane things
+
+\ \  
+
+## Packages
+
+\ \  
+
+### Installing & Updating
+
+```{r eval=FALSE}
+install.packages("psych")       # Will install the default location
+```
+
+\ \  
+
+### Loading
+
+```{r}
+library(psych)
+```
+
+### Masking
+
+Because both `psych` and `Hmisc` packages have `describe()` functions, they mask each other. To avoid this problem, you can explicitly call a function from a specified package.
+
+\ \  
+
+```{r eval=FALSE}
+psych::describe()       # Call a function from a particular package
+Hmisc::describe()
+```
+
+\ \  
+
+### What packages do you have loaded?
+
+```{r}
+library(devtools)
+
+loaded_packages()       # Takes no arguments
+```
+
+\ \  
+
+### Also, in what order is R looking through packages for functions?
+
+```{r}
+search()        # Takes no arguments
+```
+
+\ \  
+
+## Setting the working directory
+
+\ \  
+
+### Could refer to the desired directory like this
+
+```{r eval=FALSE}
+setwd("C:/Users/Chris/Documents/BASP/Fall 2016/R Workshop")
+```
+
+\ \  
+
+### R has a default home directory --- in Windows, it's the Documents folder
+
+\ \  
+
+#### What's the home directory?
+
+```{r}
+Sys.getenv("HOME")
+```
+
+\ \  
+
+#### You can remove the `HOME` directory from paths, and replace it with `~`
+
+```{r eval=FALSE}
+setwd("~/BASP/Fall 2016/R Workshop")
+```
+
+## Loading data
+
+\ \  
+
+### You can access files directly from the desired directory
+
+\ \  
+
+#### Full path
+
+```{r eval=FALSE}
+baseball.data.1 <- read.csv("C:/Users/Chris/Documents/BASP/Spring 2018/JJay R Workshop/R Workshop/data/baseball.csv")
+```
+
+\ \  
+
+#### Using tilde expansion
+
+```{r eval=FALSE}
+baseball.data.1 <- read.csv("~/BASP/Spring 2018/JJay R Workshop/R Workshop/data/baseball.csv")
+```
+
+\ \  
+
+#### Or, if you set the working directory to the folder you want, just the file name
+
+```{r eval=FALSE}
+
+setwd("/BASP/Spring 2018/JJay R Workshop/R Workshop/data)")
+
+baseball.data.1 <- read.csv("baseball.csv")
+
+```
+
+\ \  
+
+## Specialized functions
+
+```{r, eval = FALSE}
+install.packages("readxl")      # Reading excel files
+install.packages("readr")       # Faster reading of CSV
+install.packages("haven")       # Faster reading of CSV
+```
+
+```{R}
+library(readxl)
+library(readr)
+library(haven)
+```
+
+\ \  
+
+### Faster CSV
+
+```{r eval=FALSE}
+baseball.data.2 <- read_csv("C:/Users/Chris/Documents/BASP/Fall 2016/R Workshop/baseball.csv")
+```
+
+\ \  
+
+### Excel files
+
+```{r eval=FALSE}
+baseball.data.3 <- read_excel("baseball.xlsx", na = "--")
+```
+
+\ \  
+
+### SPSS files
+
+```{r eval=FALSE}
+baseball.data.4 <- read_sav("baseball.sav")
+```
+
+\ \  
+
+### RDS
+
+```{r eval=FALSE}
+baseball.data.5 <- read_rds("baseball.rds")
+```
+
+\ \  
+
+### You can also load data straight from the OSF (it's harder for Excel files)
+
+```{r eval=FALSE}
+baseball.data.2 <- read_csv("https://osf.io/yjzhr/?action=download")
+baseball.data.4 <- read_sav("https://osf.io/554ht/?action=download")
+baseball.data.5 <- read_rds(gzcon(url("https://osf.io/f7cae/?action=download")))
+```
+
+\ \  
+
+This last one explicitly takes a link, opens it using `url()`, decompresses it using `gzcon()`, and then reads the RDS file.
+
+\ \  
+
+## Saving data
+
+\ \  
+
+### CSV
+
+```{r eval=FALSE}
+write_csv(baseball.data.1, "baseball.1.csv")
+```
+
+\ \  
+
+### Faster CSV
+
+```{r eval=FALSE}
+write_csv(baseball.data.2, "baseball.2.csv")
+```
+
+\ \  
+
+### SPSS files
+
+```{r eval=FALSE}
+write_sav(baseball.data.4, "baseball.4.sav")
+```
+
+\ \  
+
+### RDS
+
+```{r eval=FALSE}
+save_rds(baseball.data.1, "baseball.RDS")
+```
+
+\ \  
+
+## Getting help
+
+\ \  
+
+### For functions
+
+```{r eval=FALSE}
+?save_rds     # With a function name
+```
+
+\ \  
+
+#### Or, put your cursor inside the function in RStudio, and hit "F1"
+
+\ \  
+
+### Searching for strings
+
+```{r eval=FALSE}
+??SPSS       # With a search term
+```
+
+\ \  
+
+### For a package
+
+```{r eval=FALSE}
+help(package = "haven")
+```
+
+\ \  

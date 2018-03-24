@@ -1,0 +1,391 @@
+---
+title: "Building a Basic Data Analysis Workflow in R"
+output:
+  html_document:
+    df_print: paged
+  html_notebook:
+    highlight: tango
+    theme: yeti
+  pdf_document: default
+editor_options:
+  chunk_output_type: inline
+---
+
+\ \ 
+
+I'll be covering the basic tasks needed to conduct common analyses. I think people are intimidated by R because they don't know how to start. So, I'll begin by covering things like importing data (using code and RStudio tools), recoding variables, working with subsets of data, and running descriptive statistics. Then some basic exploratory plots, correlations, regression, and ANOVA. After we've covered that basic ground I can take questions and/or cover some more advanced tasks.
+
+# Getting started
+
+## Loading packages
+
+```{r  tidyverse}
+library(tidyverse)
+```
+
+\ \  
+
+## Loading data
+
+### Using RStudio's "Import Dataset" tool
+
+\ \  
+
+**File > Import Dataset > From Text (readr)**  
+
+then  
+
+**Browse > data > "stanton_homeruns.csv"**  
+
+\ \  
+
+"Import Dataset" automatically adds `View(stanton_homeruns)`, which is nice.
+
+\ \  
+
+### From the "data" folder in the "JJay R Workshop" directory  
+
+```{r}
+
+stanton_homeruns <- 
+    read_csv("./data/stanton_homeruns.csv")
+
+glimpse(stanton_homeruns)
+
+```
+
+\ \  
+
+### From my GitHub "Baseball Data" repository
+
+```{r}
+
+stanton_homeruns <- 
+    read_csv("https://raw.githubusercontent.com/cgettings/Baseball-Data/master/data/stanton_homeruns.csv")
+
+print(stanton_homeruns)
+
+```
+
+\ \  
+
+# Data manipulation
+
+## A brief digression on the pipe operator
+
+*or*
+
+Why ` %>% ` is the most beautiful character string in R
+
+\ \  
+
+We did this operation above:
+
+```{r}
+print(stanton_homeruns)
+```
+
+What if we wanted to clean the data a bit more, first, then print?  
+
+```{r}
+
+stanton_homeruns_1 <- 
+    select(
+        .data = stanton_homeruns, 
+        game_date, 
+        pitch_type, 
+        launch_speed, 
+        hit_distance)
+
+print(stanton_homeruns_1)
+
+```
+ 
+\ \  
+
+Character variables? Have to fix that.
+
+```{r, warning=FALSE}
+
+stanton_homeruns_2 <- 
+    mutate(
+        .data = stanton_homeruns_1, 
+        launch_speed = as.numeric(launch_speed),
+        hit_distance = as.numeric(hit_distance))
+
+print(stanton_homeruns_2)
+
+```
+
+\ \  
+
+Let's sort by speed, in descending order.
+
+```{r}
+
+stanton_homeruns_3 <- 
+    arrange(
+        .data = stanton_homeruns_2,
+        desc(launch_speed)
+    )
+
+print(stanton_homeruns_3)
+
+```
+
+\ \  
+
+Anyone else feeling like...
+
+![](https://media.giphy.com/media/fGYiv8Nkck4ta/giphy.gif)
+
+\ \  
+
+**We can combine all of these operations with the pipe operator!**
+
+
+` %>% ` automatically supplies the output from the previous step as the first argument to the next function. `select()`, `mutate()`, and `arrange()` are all designed to work with the pipe operator, so they take the data as the first argument.  
+
+The pipe operator is great, because it improves readability, and lets you write the operations in the order in which they happen.
+
+```{r, warning=FALSE}
+
+stanton_homeruns %>% 
+    
+    select(game_date,
+           pitch_type,
+           launch_speed,
+           hit_distance) %>% 
+    
+    mutate(launch_speed = as.numeric(launch_speed),
+           hit_distance = as.numeric(hit_distance)) %>%
+    
+    arrange(desc(launch_speed)) %>% 
+    
+    print()
+
+```
+
+\ \  
+
+![](https://media.giphy.com/media/TyPKuTkBXmBPO/giphy.gif)
+
+\ \  
+
+(In RStudio, you can use the keyboard shortcuts *Ctrl + Shift + M* on Windows or *Cmd + Shift + M* on Mac. You can also hit *Alt/Option+Shift+K* to check out RStudio's keyboard shortcuts.)
+
+\ \ 
+
+You can use `.` as a stand-in for the data, to get a better sense of what's going on here:
+
+```{r, eval=FALSE}
+
+stanton_homeruns %>% 
+    
+    select(.data = .,
+           game_date,
+           pitch_type,
+           launch_speed,
+           hit_distance) %>% 
+    
+    mutate(.data = .,
+           launch_speed = as.numeric(launch_speed),
+           hit_distance = as.numeric(hit_distance)) %>% 
+    
+    arrange(.data = ., 
+            desc(launch_speed)) %>% 
+    
+    print()
+
+```
+
+## Working with a subset of data
+
+Let's look only at Stanton's home runs > 100 mph. 
+
+First let's create a new dataset from the code above:
+
+```{r, warning=FALSE}
+
+## Remove the other intermediate datasets from before ##
+
+rm(stanton_homeruns_1, stanton_homeruns_2, stanton_homeruns_3)
+
+## Now call this new dataset "stanton_homeruns_2"
+
+stanton_homeruns_2 <- 
+    
+    stanton_homeruns %>% 
+    
+    select(game_date,
+           pitch_type,
+           launch_speed,
+           hit_distance) %>% 
+    
+    mutate(launch_speed = as.numeric(launch_speed),
+           hit_distance = as.numeric(hit_distance)) %>% 
+    
+    arrange(desc(launch_speed))
+
+```
+
+We create a subset simply by adding a `filter()` operation:
+
+```{r, warning=FALSE}
+
+stanton_homeruns_2 %>% filter(launch_speed > 100)
+
+```
+
+\ \  
+
+103 of his 267 home runs have been > 100 mph.
+
+
+# Descriptive statistics
+
+Let's take a look at some descriptive statistics
+
+First, if you don't have the `psych` package installed, install that now.
+
+```{r eval=FALSE}
+install.packages("psych")       # Will install the default location
+```
+
+Now load the psych library
+
+```{r}
+library(psych)
+```
+
+
+```{r, warning=FALSE}
+describe(stanton_homeruns_2)
+```
+
+We can also summarize just the 2 numeric variables using `dplyr::summarize_at()`, which is a "scoped" version of `dplyr::summarize()`.
+
+```{r}
+
+stanton_homeruns_2 %>% 
+    summarize_at(
+        .vars = vars(launch_speed, hit_distance), 
+        .funs = funs(mean(., na.rm = TRUE), sd(., na.rm = TRUE)))
+
+```
+
+# Exploratory plots
+
+## What's the association between speed and distance?
+
+We can create beautiful plots using the `ggplot2` package.
+
+There's literally an entire book on `ggplot2`, so there's *a lot* you can do. I'll just specify a plot that I like.
+
+Let's make a scatterplot with a linear best fit line.
+
+```{r, warning=FALSE}
+
+stanton_plot_1 <- 
+    stanton_homeruns_2 %>% 
+    ggplot(aes(x = launch_speed, y = hit_distance)) +
+    geom_point() +
+    geom_smooth(method = "lm") +
+    labs(title = "Giancarlo Stanton home runs: Speed vs. distance",
+         x = "Launch speed",
+         y = "Hit distance",
+         subtitle = "Not surprising!") +
+    theme_bw()
+
+stanton_plot_1
+
+```
+
+\ \  
+
+
+### Saving a plot
+
+Let's save that to the "plots" folder
+
+```{r}
+
+ggsave(plot = stanton_plot_1, filename = "plots/stanton_plot_1.png")
+
+```
+
+# Analyses
+
+## Corelation
+
+Let's look at the correlation of speed and distance
+
+First let's load the `broom` package:
+
+```{r}
+library(broom)
+```
+
+This standardizes R model output. I'll show you the difference.
+
+First the correlation test:
+
+```{r}
+
+stanton_cor <-
+    with(stanton_homeruns_2, 
+         cor.test(x = launch_speed, y = hit_distance))
+
+```
+
+Now the output using `print()`
+
+```{r}
+
+print(stanton_cor)
+
+```
+
+Now using `broom::tidy()`
+
+```{r}
+
+tidy(stanton_cor)
+
+```
+
+## Regression
+
+Let's run a regression, then get output for the terms, and model statistics
+
+```{r}
+
+stanton_fit_1 <- lm(hit_distance ~ launch_speed, data = stanton_homeruns_2)
+
+## Terms ##
+
+tidy(stanton_fit_1)
+
+## Statistics ##
+
+glance(stanton_fit_1)
+
+```
+
+Let's add pitch type as a categorical predictor
+
+```{r}
+
+stanton_fit_2 <- lm(hit_distance ~ launch_speed + pitch_type, data = stanton_homeruns_2)
+
+## Terms ##
+
+tidy(stanton_fit_2)
+
+## Statistics ##
+
+glance(stanton_fit_2)
+
+```
+
+
